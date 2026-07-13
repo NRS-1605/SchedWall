@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Schedwall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=EB+Garamond:ital,wght@0,400;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0A0A0A;
+    --ink: rgba(255,255,255,0.85);
+    --ink-dim: rgba(255,255,255,0.55);
+    --ink-faint: rgba(255,255,255,0.35);
+    --ink-ghost: rgba(255,255,255,0.18);
+    --card: rgba(255,255,255,0.04);
+    --card-border: rgba(255,255,255,0.09);
+    --active: rgba(255,255,255,0.035);
+    --serif: "Cormorant Garamond", "EB Garamond", Georgia, serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--serif);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  #bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+
+  .app { position: fixed; inset: 0; display: flex; z-index: 1; }
+
+  /* Left vertical rail — rotated quote */
+  .sidebar {
+    width: 78px; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .quote {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 22px;
+    letter-spacing: 0.14em;
+    color: var(--ink-dim);
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  /* Matrix */
+  .matrix { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .days {
+    display: grid;
+    grid-template-columns: 92px repeat(7, 1fr);
+    height: 96px; flex-shrink: 0;
+    align-items: end;
+    padding-bottom: 0;
+  }
+  .days .cell {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-end;
+    height: 100%; padding-bottom: 6px; gap: 8px;
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 11px; letter-spacing: 0.4em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    position: relative;
+  }
+  .days .cell.today { color: var(--ink); }
+  .days .cell.today::after {
+    content: ""; position: absolute; bottom: -1px;
+    width: 22px; height: 1px; background: var(--ink);
+  }
+  .days .cell .datenum {
+    display: block; font-family: var(--serif); font-size: 22px;
+    line-height: 1; letter-spacing: 0; color: var(--ink-dim);
+    text-transform: none;
+  }
+  .days .cell.today .datenum { color: var(--ink); }
+
+  /* Today badge in top-left corner over the hour label column */
+  .today-badge {
+    position: fixed; top: 18px; left: 100px; z-index: 3;
+    font-family: var(--serif); color: var(--ink-dim);
+    letter-spacing: 0.08em; user-select: none;
+  }
+  .today-badge .big { font-size: 26px; color: var(--ink); }
+  .today-badge .sub { font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.35em; color: var(--ink-faint); margin-top: 2px; }
+
+  .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; }
+  .scroll-inner {
+    position: relative; left: 0; right: 0; top: 0;
+  }
+  .grid { display: grid; grid-template-columns: 92px repeat(7, 1fr); position: relative; }
+
+  .hour-label {
+    font-family: var(--serif);
+    font-size: 13px;
+    color: var(--ink);
+    opacity: 1;
+    padding: 6px 12px 0 0;
+    text-align: right;
+    letter-spacing: 0.05em;
+  }
+  .slot { position: relative; }
+  .slot.today { background: var(--active); }
+
+  /* row separator lines — very faint so they read as part of the mat */
+  .grid::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+  }
+
+  /* Task cards */
+  .task {
+    position: absolute;
+    left: 6px; right: 6px;
+    border-radius: 10px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(2px);
+    padding: 10px 12px;
+    display: flex; align-items: flex-start; gap: 10px;
+    overflow: hidden;
+  }
+  .task.overlay { border-left: 2px solid rgba(220, 200, 160, 0.55); }
+  .task .box {
+    width: 12px; height: 12px; flex-shrink: 0;
+    border: 1px solid var(--ink-dim);
+    border-radius: 2px;
+    margin-top: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; line-height: 1;
+  }
+  .task.done .box::after { content: "\2713"; color: var(--ink); }
+  .task .title {
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.2;
+    color: var(--ink);
+    letter-spacing: 0.005em;
+  }
+  .task .time {
+    display: block;
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 10px;
+    color: var(--ink-faint);
+    margin-top: 3px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .task.done .title { text-decoration: line-through; opacity: 0.45; }
+
+  /* Now line */
+  .now-line {
+    position: absolute; left: 92px; right: 0;
+    height: 1px; background: rgba(255,255,255,0.4);
+    pointer-events: none;
+  }
+  .now-line::before {
+    content: ""; position: absolute; left: -3px; top: -3px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: rgba(255,255,255,0.7);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.22);
+    border-radius: 999px;
+  }
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.22) transparent;
+</style>
+</head>
+<body>
+<svg id="bg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <!-- Minor subdivision lines -->
+  <g stroke="rgba(255,255,255,0.06)" stroke-width="0.5" id="minor"></g>
+  <!-- Major grid lines -->
+  <g stroke="rgba(255,255,255,0.11)" stroke-width="1" id="major"></g>
+  <!-- Ruler tick marks -->
+  <g stroke="rgba(255,255,255,0.16)" stroke-width="1" id="ticks"></g>
+  <!-- Corner numbers -->
+  <g fill="rgba(255,255,255,0.35)" font-size="8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" id="numbers"></g>
+  <!-- Solid diagonal -->
+  <line x1="0" y1="1080" x2="1920" y2="0" stroke="rgba(255,255,255,0.16)" stroke-width="1"/>
+  <!-- Dotted diagonal fan -->
+  <g stroke="rgba(255,255,255,0.11)" stroke-width="0.75" stroke-dasharray="2 6" fill="none">
+    <line x1="0" y1="1080" x2="1920" y2="702"/>
+    <line x1="0" y1="1080" x2="1920" y2="864"/>
+    <line x1="0" y1="1080" x2="1056" y2="0"/>
+    <line x1="0" y1="1080" x2="576" y2="0"/>
+    <line x1="1920" y1="0" x2="0" y2="594"/>
+    <line x1="1920" y1="0" x2="672" y2="1080"/>
+  </g>
+</svg>
+
+<div class="app">
+  <aside class="sidebar"><div class="quote" id="quote"></div></aside>
+  <section class="matrix">
+    <div class="today-badge" id="todayBadge"></div>
+    <header class="days" id="dayHeader"></header>
+    <div class="scroll"><div class="scroll-inner" id="scrollInner"></div></div>
+  </section>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ---------- Background grid (mirrors Grid Clock Wallpaper) ----------
+(function buildBg(){
+  const W = 1920, H = 1080, MAJOR = 80, MINOR = MAJOR / 8;
+  const svgNS = "http://www.w3.org/2000/svg";
+  const line = (parent, a) => {
+    const el = document.createElementNS(svgNS, "line");
+    for (const k in a) el.setAttribute(k, a[k]);
+    parent.appendChild(el);
+  };
+  const text = (parent, a, str) => {
+    const el = document.createElementNS(svgNS, "text");
+    for (const k in a) el.setAttribute(k, a[k]);
+    el.textContent = str;
+    parent.appendChild(el);
+  };
+  const minor = document.getElementById("minor");
+  const major = document.getElementById("major");
+  const ticks = document.getElementById("ticks");
+  const nums  = document.getElementById("numbers");
+  for (let x = 0; x <= W; x += MINOR) {
+    if (x % MAJOR !== 0) line(minor, {x1:x, y1:0, x2:x, y2:H});
+  }
+  for (let y = 0; y <= H; y += MINOR) {
+    if (y % MAJOR !== 0) line(minor, {x1:0, y1:y, x2:W, y2:y});
+  }
+  for (let x = 0; x <= W; x += MAJOR) line(major, {x1:x, y1:0, x2:x, y2:H});
+  for (let y = 0; y <= H; y += MAJOR) line(major, {x1:0, y1:y, x2:W, y2:y});
+  for (let x = 0; x <= W; x += MINOR) line(ticks, {x1:x, y1:0, x2:x, y2: x % MAJOR === 0 ? 10 : 5});
+  for (let y = 0; y <= H; y += MINOR) line(ticks, {x1:0, y1:y, x2: y % MAJOR === 0 ? 10 : 5, y2:y});
+  for (let i = 1; i * MAJOR < W; i++) text(nums, {x: i*MAJOR + 3, y: 18}, i);
+  for (let i = 1; i * MAJOR < H; i++) text(nums, {x: 3, y: i*MAJOR + 10}, i);
+})();
+
+// ---------- Live schedule ----------
+const HOUR_START = 8, HOUR_END = 25, HOUR_PX = 74;
+const DAYS = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
+const MONTHS_FULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+let state = { quote:"", template:[], overlay:[], checked:{} };
+
+function todayIndex(){ const js = new Date().getDay(); return js === 0 ? 7 : js; }
+function ymd(d = new Date()){ const p = n => String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
+function fmtHour(h){
+  const n = ((h%24)+24)%24;
+  const suffix = n < 12 ? "AM" : "PM";
+  const h12 = ((n + 11) % 12) + 1;
+  return `${h12} ${suffix}`;
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function addDays(d,n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
+// Date for column d (1..7, Mon..Sun) in current week
+function dateForDay(d){ return addDays(new Date(), d - todayIndex()); }
+
+function renderTodayBadge(){
+  const now = new Date();
+  const el = document.getElementById("todayBadge");
+  el.innerHTML =
+    `<div class="big">${now.getDate()} ${MONTHS_FULL[now.getMonth()]}</div>
+     <div class="sub">${DAYS[todayIndex()-1]} · ${now.getFullYear()}</div>`;
+}
+
+function renderHeader(){
+  const t = todayIndex();
+  const el = document.getElementById("dayHeader");
+  el.innerHTML = "";
+  const spacer = document.createElement("div"); spacer.className = "cell"; el.appendChild(spacer);
+  DAYS.forEach((d, i) => {
+    const c = document.createElement("div");
+    c.className = "cell" + (i+1 === t ? " today" : "");
+    const dd = dateForDay(i+1);
+    c.innerHTML = `${d}<span class="datenum">${dd.getDate()}</span>`;
+    el.appendChild(c);
+  });
+}
+
+function renderGrid(){
+  const t = todayIndex();
+  const inner = document.getElementById("scrollInner");
+  inner.innerHTML = "";
+  const grid = document.createElement("div");
+  grid.className = "grid";
+
+  const hours = HOUR_END - HOUR_START;
+  for (let h = 0; h < hours; h++) {
+    const label = document.createElement("div");
+    label.className = "hour-label";
+    label.style.height = HOUR_PX + "px";
+    label.textContent = fmtHour(HOUR_START + h);
+    grid.appendChild(label);
+    for (let d = 1; d <= 7; d++) {
+      const s = document.createElement("div");
+      s.className = "slot" + (d === t ? " today" : "");
+      s.style.height = HOUR_PX + "px";
+      grid.appendChild(s);
+    }
+  }
+
+  const columns = document.createElement("div");
+  Object.assign(columns.style, {
+    position: "absolute", top: "0", left: "92px", right: "0", bottom: "0",
+    display: "grid", gridTemplateColumns: "repeat(7, 1fr)", pointerEvents: "none",
+  });
+
+  for (let d = 1; d <= 7; d++) {
+    const col = document.createElement("div");
+    col.style.position = "relative";
+    columns.appendChild(col);
+    const dateStr = ymd(dateForDay(d));
+    const dayTasks = [
+      ...state.template.filter(x => x.day === d).map(x => ({ ...x, layer:"template" })),
+      ...state.overlay .filter(x => x.date === dateStr).map(x => ({ ...x, layer:"overlay"  })),
+    ];
+    for (const task of dayTasks) {
+      const top = (task.start - HOUR_START) * HOUR_PX;
+      const height = (task.end - task.start) * HOUR_PX;
+      if (top < 0 || top >= hours * HOUR_PX) continue;
+      const key = `${task.id}-${dateStr}`;
+      const el = document.createElement("div");
+      el.className = "task " + task.layer + (state.checked[key] ? " done" : "");
+      el.style.top = (top + 4) + "px";
+      el.style.height = (height - 8) + "px";
+      el.innerHTML =
+        `<div class="box"></div>
+         <div><div class="title">${escapeHtml(task.title)}</div>
+         <span class="time">${fmtHour(task.start)} — ${fmtHour(task.end)}</span></div>`;
+      col.appendChild(el);
+    }
+  }
+  grid.appendChild(columns);
+
+  // now-line
+  const now = new Date();
+  const nowH = now.getHours() + now.getMinutes()/60;
+  if (nowH >= HOUR_START && nowH < HOUR_END) {
+    const line = document.createElement("div");
+    line.className = "now-line";
+    line.style.top = ((nowH - HOUR_START) * HOUR_PX) + "px";
+    grid.appendChild(line);
+  }
+
+  inner.appendChild(grid);
+  centerScroll();
+}
+
+function centerScroll(){
+  const scroll = document.querySelector(".scroll");
+  const inner  = document.getElementById("scrollInner");
+  if (!scroll || !inner) return;
+  inner.style.transform = "translateY(0px)";
+  scroll.scrollTop = 0;
+  requestAnimationFrame(() => {
+    scroll.scrollTop = 0;
+    inner.style.transform = "translateY(0px)";
+  });
+}
+
+function renderQuote(){ document.getElementById("quote").textContent = state.quote || ""; }
+function renderAll(){ renderTodayBadge(); renderHeader(); renderQuote(); renderGrid(); }
+
+const socket = io({ transports:["websocket","polling"], query: { client: "wallpaper" } });
+socket.on("state", (s) => { state = s; renderAll(); });
+socket.on("scroll-command", ({ direction }) => {
+  const scrollArea = document.querySelector(".scroll");
+  if (!scrollArea) return;
+  const amount = 150;
+  scrollArea.scrollBy({ top: direction === "down" ? amount : -amount, behavior: "smooth" });
+});
+fetch("/api/state").then(r => r.json()).then(s => { state = s; renderAll(); });
+
+window.addEventListener("load", centerScroll);
+setInterval(centerScroll, 30 * 1000);
+setInterval(renderAll, 60 * 1000);
+</script>
+</body>
+</html>

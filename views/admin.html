@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Schedwall — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Playfair+Display:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0d0d0d; --panel: #141414; --panel-2: #1a1a1a;
+    --ink: #ebe8e2; --ink-dim: rgba(235,232,226,0.6);
+    --ink-faint: rgba(235,232,226,0.28); --border: rgba(255,255,255,0.09);
+    --accent: #d9c9a3; --overlay-accent: #c9a86b; --danger: #d76b6b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--ink); min-height: 100vh;
+    font-family: "Inter", system-ui, sans-serif;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  header.top {
+    padding: 28px 40px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+  }
+  h1 { font-family: "Playfair Display", serif; font-weight: 600; font-size: 28px; letter-spacing: 0.02em; }
+  .sub { color: var(--ink-dim); font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; }
+  a.wall { color: var(--accent); text-decoration: none; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid var(--border); padding: 8px 14px; border-radius: 6px; }
+  a.wall:hover { background: var(--panel); }
+  main { padding: 32px 40px 80px; display: grid; gap: 28px; max-width: 1400px; margin: 0 auto; }
+  section.card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 24px; }
+  section h2 { font-family: "Playfair Display", serif; font-weight: 500; font-size: 18px; margin-bottom: 4px; letter-spacing: 0.02em; }
+  section .hint { color: var(--ink-dim); font-size: 13px; margin-bottom: 18px; }
+  .section-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+
+  input, select, textarea, button {
+    font: inherit; color: var(--ink);
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 9px 12px; outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); color: #1a1a1a; border-color: var(--accent); font-weight: 500; }
+  button.primary:hover { filter: brightness(1.08); }
+  button.ghost { background: transparent; }
+  button.danger { background: transparent; border-color: rgba(215,107,107,0.4); color: var(--danger); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; padding: 8px 12px; }
+  button.danger:hover { background: rgba(215,107,107,0.1); }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  label.field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .tab { padding: 10px 16px; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--ink-dim); border-radius: 0; }
+  .tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+
+  .layer-panel { display: none; }
+  .layer-panel.active { display: block; }
+
+  .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 18px; }
+  .day-col { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; min-height: 120px; }
+  .day-col.other-month { opacity: 0.55; }
+  .day-col h3 { font-family: "Playfair Display", serif; font-weight: 500; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 4px; display: flex; justify-content: space-between; align-items: baseline; }
+  .day-col h3 .dnum { color: var(--ink); font-size: 18px; letter-spacing: 0; }
+  .day-col.today h3 { color: var(--accent); }
+  .day-col .datesub { color: var(--ink-faint); font-size: 10px; margin-bottom: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+  .task-item { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; }
+  .task-item.overlay { border-left: 2px solid var(--overlay-accent); }
+  .task-item .info { flex: 1; min-width: 0; }
+  .task-item .title { font-size: 14px; }
+  .task-item.done .title { text-decoration: line-through; opacity: 0.5; }
+  .task-item .time { font-size: 11px; color: var(--ink-faint); letter-spacing: 0.08em; margin-top: 2px; }
+  .task-item input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
+  .task-item .del { background: transparent; border: none; color: var(--ink-faint); font-size: 16px; padding: 4px 8px; }
+  .task-item .del:hover { color: var(--danger); }
+  .task-item .quick { background: transparent; border: 1px dashed var(--border); color: var(--ink-faint); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; width: 100%; }
+  .task-item .quick:hover { color: var(--accent); border-color: var(--accent); }
+
+  .empty { color: var(--ink-faint); font-size: 12px; font-style: italic; }
+  .quote-row input { flex: 1; font-family: "EB Garamond", serif; font-style: italic; font-size: 18px; }
+
+  /* Overlay month/week nav */
+  .month-tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; }
+  .month-tab { padding: 8px 14px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 20px; color: var(--ink-dim); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+  .month-tab.active { background: var(--accent); color: #1a1a1a; border-color: var(--accent); }
+  .week-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+  .week-nav .arrow { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; color: var(--ink-dim); }
+  .week-nav .arrow:hover { color: var(--ink); }
+  .week-label { font-family: "Playfair Display", serif; font-size: 15px; color: var(--ink); letter-spacing: 0.02em; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Schedwall — Admin</h1>
+    <div class="sub">Local · offline · <span id="conn">connecting…</span></div>
+  </div>
+  <a class="wall" href="/wallpaper" target="_blank">Open wallpaper ↗</a>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Sidebar quote</h2>
+    <p class="hint">Displayed vertically on the wallpaper's left rail.</p>
+    <form id="quoteForm" class="row quote-row">
+      <input id="quoteInput" maxlength="300" placeholder="Si vis pacem, para bellum" />
+      <button class="primary" type="submit">Save</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <div>
+        <h2>Schedule</h2>
+        <p class="hint">Recurring <em>base template</em> (weekly, Mon–Sun) and one-off <em>overlay</em> (any calendar date).</p>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-layer="template">Base template</button>
+      <button class="tab" data-layer="overlay">Overlay (dated)</button>
+    </div>
+
+    <!-- TEMPLATE PANEL -->
+    <div class="layer-panel active" id="panel-template">
+      <div class="row" style="justify-content: space-between;">
+        <form id="templateForm" class="row">
+          <label class="field">Day
+            <select id="tDay">
+              <option value="1">Monday</option><option value="2">Tuesday</option>
+              <option value="3">Wednesday</option><option value="4">Thursday</option>
+              <option value="5">Friday</option><option value="6">Saturday</option>
+              <option value="7">Sunday</option>
+            </select>
+          </label>
+          <label class="field">Start<select id="tStart"></select></label>
+          <label class="field">End<select id="tEnd"></select></label>
+          <label class="field" style="flex:1; min-width: 220px;">Title
+            <input id="tTitle" placeholder="e.g. Lecture — Systems" maxlength="120" />
+          </label>
+          <button class="primary" type="submit">Add</button>
+        </form>
+        <button class="danger" id="clearTemplate" type="button">Clear layer</button>
+      </div>
+      <div class="week" id="templateWeek"></div>
+    </div>
+
+    <!-- OVERLAY PANEL -->
+    <div class="layer-panel" id="panel-overlay">
+      <div class="month-tabs" id="monthTabs"></div>
+      <div class="week-nav">
+        <button class="arrow" id="weekPrev" type="button">← Prev week</button>
+        <div class="week-label" id="weekLabel"></div>
+        <button class="arrow" id="weekNext" type="button">Next week →</button>
+      </div>
+
+      <div class="row" style="justify-content: space-between; margin-top: 12px;">
+        <form id="overlayForm" class="row">
+          <label class="field">Date
+            <input type="date" id="oDate" />
+          </label>
+          <label class="field">Start<select id="oStart"></select></label>
+          <label class="field">End<select id="oEnd"></select></label>
+          <label class="field" style="flex:1; min-width: 220px;">Title
+            <input id="oTitle" placeholder="e.g. Dentist appointment" maxlength="120" />
+          </label>
+          <button class="primary" type="submit">Add</button>
+        </form>
+        <button class="danger" id="clearOverlay" type="button">Clear layer</button>
+      </div>
+
+      <div class="week" id="overlayWeek"></div>
+    </div>
+  </section>
+</main>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS_FULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+let state = { quote:"", template:[], overlay:[], checked:{} };
+let currentLayer = "template";
+
+function todayIndex() { const js = new Date().getDay(); return js === 0 ? 7 : js; }
+function ymd(d) { const p = n => String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
+function fmtHour(h) {
+  const n = ((h%24)+24)%24;
+  const suf = n < 12 ? "AM" : "PM";
+  const h12 = ((n + 11) % 12) + 1;
+  return `${h12} ${suf}`;
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function addDays(d,n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
+function startOfWeek(d){ // Monday-start
+  const x = new Date(d); const dow = x.getDay(); const diff = (dow === 0 ? -6 : 1 - dow);
+  x.setDate(x.getDate() + diff); x.setHours(0,0,0,0); return x;
+}
+
+// Populate hour selects
+function fillHours(startSel, endSel, defS=9, defE=11){
+  for (let h = 7; h <= 23; h++) startSel.innerHTML += `<option value="${h}">${fmtHour(h)}</option>`;
+  for (let h = 8; h <= 24; h++) endSel.innerHTML += `<option value="${h}">${fmtHour(h)}</option>`;
+  startSel.value = defS; endSel.value = defE;
+}
+fillHours(document.getElementById("tStart"), document.getElementById("tEnd"));
+fillHours(document.getElementById("oStart"), document.getElementById("oEnd"));
+
+// Tabs
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentLayer = btn.dataset.layer;
+    document.querySelectorAll(".layer-panel").forEach(p => p.classList.remove("active"));
+    document.getElementById("panel-" + currentLayer).classList.add("active");
+    render();
+  });
+});
+
+// Quote save
+document.getElementById("quoteForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const quote = document.getElementById("quoteInput").value.trim();
+  if (!quote) return;
+  await fetch("/api/quote", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ quote }) });
+});
+
+// Template add
+document.getElementById("templateForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const body = {
+    layer: "template",
+    day: +document.getElementById("tDay").value,
+    start: +document.getElementById("tStart").value,
+    end: +document.getElementById("tEnd").value,
+    title: document.getElementById("tTitle").value.trim(),
+  };
+  if (body.end <= body.start) return alert("End must be after start.");
+  if (!body.title) return alert("Title required.");
+  const r = await fetch("/api/task", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
+  if (r.ok) document.getElementById("tTitle").value = "";
+  else alert("Failed: " + (await r.text()));
+});
+
+// Overlay add
+document.getElementById("overlayForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const body = {
+    layer: "overlay",
+    date: document.getElementById("oDate").value,
+    start: +document.getElementById("oStart").value,
+    end: +document.getElementById("oEnd").value,
+    title: document.getElementById("oTitle").value.trim(),
+  };
+  if (!body.date) return alert("Pick a date.");
+  if (body.end <= body.start) return alert("End must be after start.");
+  if (!body.title) return alert("Title required.");
+  const r = await fetch("/api/task", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
+  if (r.ok) document.getElementById("oTitle").value = "";
+  else alert("Failed: " + (await r.text()));
+});
+
+// Clear-layer buttons
+document.getElementById("clearTemplate").addEventListener("click", async () => {
+  if (!confirm("Clear ALL base-template tasks? This cannot be undone.")) return;
+  await fetch("/api/tasks/template", { method:"DELETE" });
+});
+document.getElementById("clearOverlay").addEventListener("click", async () => {
+  if (!confirm("Clear ALL overlay events (all months)? This cannot be undone.")) return;
+  await fetch("/api/tasks/overlay", { method:"DELETE" });
+});
+
+async function del(layer, id) { await fetch(`/api/task/${layer}/${id}`, { method:"DELETE" }); }
+async function toggle(id, date, checked) {
+  await fetch("/api/check", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ taskId:id, date, checked }) });
+}
+
+// --- Overlay navigation state ---
+const today0 = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+let weekStart = startOfWeek(today0);          // Monday of the shown week
+let selectedMonthKey = ymKey(weekStart);      // "YYYY-MM"
+
+function ymKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
+function monthList(){
+  // Current month + next 11 months (rolling year)
+  const out = []; const base = new Date(today0.getFullYear(), today0.getMonth(), 1);
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(base.getFullYear(), base.getMonth() + i, 1);
+    out.push(d);
+  }
+  return out;
+}
+
+function renderMonthTabs(){
+  const wrap = document.getElementById("monthTabs");
+  wrap.innerHTML = "";
+  for (const m of monthList()) {
+    const key = ymKey(m);
+    const btn = document.createElement("button");
+    btn.className = "month-tab" + (key === selectedMonthKey ? " active" : "");
+    btn.textContent = `${MONTHS[m.getMonth()]} ${m.getFullYear()}`;
+    btn.addEventListener("click", () => {
+      selectedMonthKey = key;
+      // jump to first week of that month (or current week if it's this month)
+      const first = new Date(m.getFullYear(), m.getMonth(), 1);
+      const sow = startOfWeek(first);
+      weekStart = (key === ymKey(today0) && sow < startOfWeek(today0)) ? startOfWeek(today0) : sow;
+      render();
+    });
+    wrap.appendChild(btn);
+  }
+}
+
+function renderWeekNav(){
+  const end = addDays(weekStart, 6);
+  const sameMonth = weekStart.getMonth() === end.getMonth();
+  const label = sameMonth
+    ? `${MONTHS_FULL[weekStart.getMonth()]} ${weekStart.getDate()} – ${end.getDate()}, ${end.getFullYear()}`
+    : `${MONTHS[weekStart.getMonth()]} ${weekStart.getDate()} – ${MONTHS[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`;
+  document.getElementById("weekLabel").textContent = label;
+}
+document.getElementById("weekPrev").addEventListener("click", () => {
+  const candidate = addDays(weekStart, -7);
+  if (addDays(candidate, 6) < today0) return; // no past weeks
+  weekStart = candidate;
+  selectedMonthKey = ymKey(weekStart);
+  render();
+});
+document.getElementById("weekNext").addEventListener("click", () => {
+  weekStart = addDays(weekStart, 7);
+  selectedMonthKey = ymKey(weekStart);
+  render();
+});
+
+// Default overlay date input to today
+document.getElementById("oDate").value = ymd(today0);
+document.getElementById("oDate").min = ymd(today0);
+
+function buildDayCol(date, layer){
+  const col = document.createElement("div");
+  const isToday = ymd(date) === ymd(today0);
+  const otherMonth = layer === "overlay" && ymKey(date) !== selectedMonthKey;
+  col.className = "day-col" + (isToday ? " today" : "") + (otherMonth ? " other-month" : "");
+  const dateStr = ymd(date);
+  col.innerHTML = `<h3>${DAYS[(date.getDay()+6)%7]}<span class="dnum">${date.getDate()}</span></h3>
+                   <div class="datesub">${MONTHS[date.getMonth()]}</div>`;
+
+  let items = [];
+  if (layer === "template") {
+    const dayIdx = ((date.getDay()+6)%7) + 1;
+    items = state.template.filter(x => x.day === dayIdx).sort((a,b)=>a.start-b.start);
+  } else {
+    items = state.overlay.filter(x => x.date === dateStr).sort((a,b)=>a.start-b.start);
+  }
+
+  if (items.length === 0) col.innerHTML += `<div class="empty">no items</div>`;
+
+  for (const task of items) {
+    const key = `${task.id}-${dateStr}`;
+    const done = !!state.checked[key];
+    const item = document.createElement("div");
+    item.className = "task-item " + layer + (done ? " done" : "");
+    item.innerHTML = `
+      <input type="checkbox" ${done?"checked":""} />
+      <div class="info">
+        <div class="title">${escapeHtml(task.title)}</div>
+        <div class="time">${fmtHour(task.start)} — ${fmtHour(task.end)}</div>
+      </div>
+      <button class="del" title="Delete">✕</button>`;
+    item.querySelector("input").addEventListener("change", (e) => toggle(task.id, dateStr, e.target.checked));
+    item.querySelector(".del").addEventListener("click", () => {
+      if (confirm(`Delete "${task.title}"?`)) del(layer, task.id);
+    });
+    col.appendChild(item);
+  }
+
+  // In overlay layer, add quick-add button that prefills date
+  if (layer === "overlay" && date >= today0) {
+    const q = document.createElement("button");
+    q.className = "quick"; q.type = "button";
+    q.textContent = "+ event on this date";
+    q.addEventListener("click", () => {
+      document.getElementById("oDate").value = dateStr;
+      document.getElementById("oTitle").focus();
+    });
+    col.appendChild(q);
+  }
+
+  return col;
+}
+
+function renderTemplate(){
+  const week = document.getElementById("templateWeek");
+  week.innerHTML = "";
+  // synthesize Mon..Sun of this week
+  const monday = startOfWeek(today0);
+  for (let i = 0; i < 7; i++) week.appendChild(buildDayCol(addDays(monday, i), "template"));
+}
+
+function renderOverlay(){
+  const week = document.getElementById("overlayWeek");
+  week.innerHTML = "";
+  for (let i = 0; i < 7; i++) week.appendChild(buildDayCol(addDays(weekStart, i), "overlay"));
+}
+
+function render() {
+  document.getElementById("quoteInput").value = state.quote || "";
+  if (currentLayer === "template") renderTemplate();
+  else { renderMonthTabs(); renderWeekNav(); renderOverlay(); }
+}
+
+const socket = io({ transports:["websocket","polling"] });
+socket.on("connect", () => { document.getElementById("conn").textContent = "connected"; });
+socket.on("disconnect", () => { document.getElementById("conn").textContent = "disconnected"; });
+socket.on("state", (s) => { state = s; render(); });
+
+fetch("/api/state").then(r => r.json()).then(s => { state = s; render(); });
+</script>
+</body>
+</html>
